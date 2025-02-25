@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мемогенератор 2.0</title>
+  <style>
+    /* Основные стили */
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      font-family: 'Arial', sans-serif;
+      color: white;
+      overflow: auto;
+      transition: background 0.5s ease;
+    }
+
+    body.light-theme {
+      background: linear-gradient(135deg, #f0f0f0, #d0d0d0);
+      color: #333;
+    }
+
+    /* Контейнер для фотографии */
+    .photo-container {
+      width: 90%;
+      max-width: 600px;
+      height: auto;
+      min-height: 200px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+      transition: background 0.5s ease;
+      margin-top: 20px;
+    }
+
+    body.light-theme .photo-container {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Фотография */
+    .photo {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 10px;
+      transition: transform 0.5s ease;
+    }
+
+    .photo:hover {
+      transform: scale(1.05);
+    }
+
+    /* Блок текста */
+    .text-container {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      transition: background 0.5s ease;
+    }
+
+    body.light-theme .text-container {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Кнопки */
+    .refresh-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #ff6f61;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .refresh-button:hover {
+      background: #ff3b2f;
+    }
+
+    /* Эффекты */
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .photo-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+      animation: rotate 10s linear infinite;
+    }
+
+    @keyframes rotate {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Переключатель темы */
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Кнопки выбора языка */
+    .language-buttons {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .language-button {
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .language-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .language-button.active {
+      background: #ff6f61;
+    }
+
+    /* Подпись о создателе */
+    .footer {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      opacity: 0.5;
+      text-align: center;
+    }
+
+    body.light-theme .footer {
+      color: rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="language-buttons">
+    <button class="language-button active" id="ruButton">RU</button>
+    <button class="language-button" id="enButton">EN</button>
+  </div>
+  <button class="theme-toggle" id="themeToggle">🌓</button>
+  <div class="photo-container" id="photoContainer">
+    <canvas id="memeCanvas" width="600" height="400"></canvas>
+  </div>
+  <div class="text-container" id="textContainer">
+    <p id="randomText">Загрузка текста...</p>
+  </div>
+  <button class="refresh-button" id="refreshButton">GO</button>
+
+  <!-- Подключаем Fabric.js для генератора мемов -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+
+  <script>
+    const photoContainer = document.getElementById("photoContainer");
+    const memeCanvas = document.getElementById("memeCanvas");
+    const textContainer = document.getElementById("textContainer");
+    const randomText = document.getElementById("randomText");
+    const refreshButton = document.getElementById("refreshButton");
+    const themeToggle = document.getElementById("themeToggle");
+    const ruButton = document.getElementById("ruButton");
+    const enButton = document.getElementById("enButton");
+
+    let currentTheme = "dark";
+    let currentLanguage = "ru";
+    let fabricCanvas = null;
+
+    // Инициализация Fabric.js
+    function initCanvas() {
+      fabricCanvas = new fabric.Canvas("memeCanvas", {
+        width: 600,
+        height: 400,
+        backgroundColor: "transparent",
+      });
+    }
+
+    // Функция для получения случайной страницы из Википедии
+    async function getRandomWikiPage() {
+      try {
+        // Получаем случайную страницу
+        const randomUrl = `https://${currentLanguage}.wikipedia.org/api/rest_v1/page/random/summary`;
+        const response = await fetch(randomUrl);
+        const data = await response.json();
+
+        if (data.thumbnail) {
+          // Если есть миниатюра, используем её
+          const img = new Image();
+          img.src = data.thumbnail.source;
+          img.onload = () => {
+            fabricCanvas.clear();
+            const fabricImg = new fabric.Image(img, {
+              scaleX: 600 / img.width,
+              scaleY: 400 / img.height,
+            });
+            fabricCanvas.add(fabricImg);
+          };
+        } else {
+          // Если миниатюры нет, ищем изображения на странице
+          const pageTitle = data.title;
+          const imagesUrl = `https://${currentLanguage}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=images&format=json&origin=*`;
+          const imagesResponse = await fetch(imagesUrl);
+          const imagesData = await imagesResponse.json();
+
+          const pages = imagesData.query.pages;
+          const pageId = Object.keys(pages)[0];
+          const images = pages[pageId].images;
+
+          if (images && images.length > 0) {
+            // Берем первое изображение
+            const imageTitle = images[0].title;
+            const imageUrl = `https://${currentLanguage}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(imageTitle)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+            const imageResponse = await fetch(imageUrl);
+            const imageData = await imageResponse.json();
+
+            const imagePages = imageData.query.pages;
+            const imagePageId = Object.keys(imagePages)[0];
+            const imageInfo = imagePages[imagePageId].imageinfo[0];
+
+            const img = new Image();
+            img.src = imageInfo.url;
+            img.onload = () => {
+              fabricCanvas.clear();
+              const fabricImg = new fabric.Image(img, {
+                scaleX: 600 / img.width,
+                scaleY: 400 / img.height,
+              });
+              fabricCanvas.add(fabricImg);
+            };
+          } else {
+            throw new Error("На странице нет изображений");
+          }
+        }
+      } catch (error) {
+        console.error("Ошибка:", error);
+        fabricCanvas.clear();
+        photoContainer.innerHTML = "<p>Не удалось загрузить фотографию.</p>";
+      }
+    }
+
+    // Функция для получения случайного текста из Википедии
+    async function getRandomWikiText() {
+      try {
+        // Получаем случайную страницу
+        const randomUrl = `https://${currentLanguage}.wikipedia.org/api/rest_v1/page/random/summary`;
+        const response = await fetch(randomUrl);
+        const data = await response.json();
+
+        if (data.extract) {
+          // Разбиваем текст на предложения
+          const sentences = data.extract.split(/[.!?]/);
+          const randomSentence = sentences[Math.floor(Math.random() * sentences.length)].trim();
+
+          if (randomSentence) {
+            randomText.textContent = randomSentence;
+            addTextToCanvas(randomSentence);
+          } else {
+            throw new Error("Не удалось загрузить текст");
+          }
+        } else {
+          throw new Error("Не удалось загрузить текст");
+        }
+      } catch (error) {
+        console.error("Ошибка:", error);
+        await getRandomWikiText(); // Повторяем запрос, пока не получим текст
+      }
+    }
+
+    // Функция для добавления текста на фото
+    function addTextToCanvas(text) {
+      // Создаем черную полосу
+      const stripe = new fabric.Rect({
+        left: 0,
+        top: 300, // Располагаем полосу внизу
+        width: 600,
+        height: 100,
+        fill: "rgba(0, 0, 0, 0.7)", // Полупрозрачная черная полоса
+      });
+
+      // Создаем текст
+      const memeText = new fabric.Text(text, {
+        left: 50,
+        top: 320, // Располагаем текст на полосе
+        fontSize: 40,
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fill: "white",
+        shadow: "5px 5px 10px rgba(0, 0, 0, 0.5)",
+      });
+
+      // Добавляем полосу и текст на холст
+      fabricCanvas.add(stripe);
+      fabricCanvas.add(memeText);
+      memeText.bringToFront(); // Текст всегда поверх полосы
+    }
+
+    // Функция для обновления предсказания
+    async function updatePrediction() {
+      await getRandomWikiPage(); // Получаем случайное фото
+      await getRandomWikiText(); // Получаем случайный текст
+    }
+
+    // Обработчик клика на кнопку обновления
+    refreshButton.addEventListener("click", updatePrediction);
+
+    // Переключение темы
+    themeToggle.addEventListener("click", () => {
+      if (currentTheme === "dark") {
+        document.body.classList.add("light-theme");
+        currentTheme = "light";
+      } else {
+        document.body.classList.remove("light-theme");
+        currentTheme = "dark";
+      }
+    });
+
+    // Выбор языка
+    ruButton.addEventListener("click", () => {
+      currentLanguage = "ru";
+      ruButton.classList.add("active");
+      enButton.classList.remove("active");
+      updatePrediction();
+    });
+
+    enButton.addEventListener("click", () => {
+      currentLanguage = "en";
+      enButton.classList.add("active");
+      ruButton.classList.remove("active");
+      updatePrediction();
+    });
+
+    // Инициализация
+    initCanvas();
+    updatePrediction();
+  </script>
+
+  <!-- Подпись о создателе -->
+  <div class="footer">
+   <p>Discord is the spice of life</p>
+  <p>2025</p>
+  </div>
+</body>
+</html>
